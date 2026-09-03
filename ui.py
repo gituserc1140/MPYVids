@@ -1,43 +1,40 @@
-"""UI layout module for Streamlit.
+"""UI rendering helpers for the Streamlit video editor.
 
-This keeps UI code separate from the API client and the main app control flow.
-It uses Streamlit primitives to render a simple, easy-to-adapt layout.
+Keeping rendering code here (separate from app.py and video_editor.py) makes
+it easy to adapt the layout without touching the MoviePy editing logic.
 """
 
+from typing import Optional
+
 import streamlit as st
-from typing import Dict, Any
 
 
-def render_home(data: Dict[str, Any]):
-    """Render the main page given a simple data dictionary.
+def render_original_preview(video_bytes: bytes, duration: Optional[float]) -> None:
+    """Render the uploaded (original) video with its duration, if known."""
+    st.subheader("Original video")
+    st.video(video_bytes)
+    if duration is not None:
+        st.caption(f"Duration: {duration:.1f} seconds")
 
-    Expected shape (example):
-      {
-        "title": str,
-        "description": str,
-        "items": [{"id":..., "name":..., "value":...}, ...]
-      }
 
-    Adapt the rendering to your needs or replace entirely with custom
-    components or a separate front-end.
-    """
-    title = data.get("title", "Micro-app")
-    description = data.get("description", "")
-    items = data.get("items", [])
+def render_result(output_path: str, extract_audio_only: bool) -> None:
+    """Render the processed output (video or audio) with a download button."""
+    st.subheader("Result")
+    with open(output_path, "rb") as f:
+        result_bytes = f.read()
 
-    st.subheader(title)
-    if description:
-        st.write(description)
+    if extract_audio_only:
+        st.audio(result_bytes)
+        file_name = "edited_audio.mp3"
+        mime = "audio/mpeg"
+    else:
+        st.video(result_bytes)
+        file_name = "edited_video.mp4"
+        mime = "video/mp4"
 
-    if not items:
-        st.info("No items to display. Implement api_client.fetch_data() to return real data.")
-        return
-
-    # display items in columns for a compact layout
-    cols = st.columns(min(3, max(1, len(items))))
-    for idx, item in enumerate(items):
-        with cols[idx % len(cols)]:
-            st.card = None
-            st.markdown(f"**{item.get('name')}**")
-            st.write(f"ID: {item.get('id')}")
-            st.write(f"Value: {item.get('value')}")
+    st.download_button(
+        "Download result",
+        data=result_bytes,
+        file_name=file_name,
+        mime=mime,
+    )
