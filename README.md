@@ -1,61 +1,87 @@
-# Micro-app template
+# MPYVids
 
-This repository is a minimal, generic micro-app template built with Streamlit.
-It preserves a simple architecture intended to be easy to adapt for any
-API-driven micro-application.
+MPYVids is a Streamlit app for editing videos using
+[MoviePy](https://zulko.github.io/moviepy/index.html), a Python video editing
+library. Upload a video, trim it, resize it, change its playback speed,
+adjust its volume, or extract its audio track, then download the result.
 
-Contents
-- app.py — Streamlit entrypoint that gathers minimal user inputs and calls api_client.fetch_data()
-- api_client.py — API client module with a `make_request()` helper and a minimal `fetch_data()` example
-- ui.py — UI layout module that renders data using Streamlit
-- config/ — configuration module with placeholder settings
-- requirements.txt — minimal dependencies
+## Does this need an API key?
 
-Quick start
+No. MoviePy is a local Python library (built on top of ffmpeg) that runs
+entirely on the server hosting the app - it is not a web API, so there is no
+API key or account for the end user to provide. This is a deliberate change
+from the previous version of this repository, which was a generic template
+for wrapping a third-party HTTP API and asked users to paste an API key into
+the UI.
+
+## Can this run on Streamlit Community Cloud's free tier?
+
+Yes, with a few caveats to keep in mind:
+
+- **ffmpeg dependency**: MoviePy needs an ffmpeg binary. `requirements.txt`
+  includes `imageio-ffmpeg`, which downloads a self-contained ffmpeg binary
+  at install time, so no extra setup is required. `packages.txt` also
+  requests the `ffmpeg` apt package as a fallback, since Streamlit Community
+  Cloud reads that file to install system packages.
+- **Resource limits**: Community Cloud free-tier apps are capped at roughly
+  1 GB of RAM and share CPU with other apps on the host. Video encoding is
+  CPU/RAM intensive, so keep uploaded videos short and/or low-resolution.
+  Very large files may time out or exceed the memory limit.
+- **Ephemeral storage**: Uploaded videos and processed output are written to
+  temporary files on disk and are not persisted - they are removed after each
+  run and do not survive an app restart or reboot. This is fine for a
+  single edit-and-download workflow but means the app is not a video store.
+- **No GPU**: All encoding happens on CPU, so processing is slower than a
+  GPU-accelerated pipeline, which is another reason to keep clips short.
+
+In short: yes, this is possible, and no API key is required, but the app is
+best suited to short clips rather than long/high-resolution video due to the
+free tier's CPU, memory, and time constraints.
+
+## Contents
+
+- `app.py` — Streamlit entrypoint: file upload, edit options, and calls into
+  `video_editor.process_video()`
+- `video_editor.py` — MoviePy editing logic (trim, resize, speed, volume,
+  audio extraction), independent of Streamlit so it stays easy to test
+- `ui.py` — rendering helpers for previewing the original/edited video and
+  offering a download button
+- `requirements.txt` — Python dependencies (`streamlit`, `moviepy`,
+  `imageio-ffmpeg`)
+- `packages.txt` — system packages for Streamlit Community Cloud (`ffmpeg`)
+
+## Quick start
+
 1. Install dependencies
+
+   ```
    pip install -r requirements.txt
+   ```
 
 2. Run locally
+
+   ```
    streamlit run app.py
+   ```
 
-Using the template
-- The primary integration point is api_client.fetch_data(). Replace the placeholder
-  implementation with calls to your API, including authentication, pagination,
-  and error handling. Keep fetch_data() independent of Streamlit so it remains
-  testable and reusable.
+3. Upload a video, choose your edits (trim range, resize scale, speed,
+   volume, or audio-only extraction), click **Process video**, and download
+   the result.
 
-- config/settings.py contains default values for API_BASE_URL and API_KEY. You
-  can set these using environment variables or provide values at runtime via
-  the Streamlit app input fields.
+## Deploying to Streamlit Community Cloud
 
-- ui.py contains simple rendering logic with Streamlit. Modify or replace it to
-  match your UI needs (components, layout, charts, etc.).
+1. Push this repository to GitHub.
+2. Create a new app on [share.streamlit.io](https://share.streamlit.io),
+   pointing at `app.py` as the entrypoint.
+3. Community Cloud automatically installs `requirements.txt` (Python
+   packages) and `packages.txt` (apt packages, including `ffmpeg`) before
+   starting the app - no other configuration is required.
 
-How to plug in a new API
-1. Update config/settings.py or set environment variables:
-   - API_BASE_URL: base URL for your API
-   - API_KEY: optional API key (alternatively, prompt users for the key in the UI)
+## Extending the app
 
-2. Implement the API calls in api_client.fetch_data() (or add helper functions):
-   - Use the make_request() helper for consistent URL building and timeouts
-   - Add authentication (bearer tokens, API keys, custom headers) as needed
-   - Parse and return a plain Python dict with a shape the UI expects
-
-3. Adjust the UI (ui.py) and app behavior (app.py) to pass parameters and show
-   the results in a user-friendly way.
-
-Extending the template
-- Add tests for api_client.fetch_data() and UI rendering logic.
-- Add a Dockerfile or GitHub Actions workflow for CI and deployment.
-- Replace the placeholder items with richer domain models and components.
-
-License
-Add a LICENSE file appropriate for your project.
-
-Example Prompt 
-
--lets refactor this repo & streamlit app to work with "api and documentation link" so the end user can insert an api key on the front end and interact with the app.
-
-Example Prompt 2
-
--Lets use this app repo "Insert App Repo link" as a reference for the streamlit UI design and repo UI design & description but dont copy the architecture or description make it relevant to the brand of the API "insert reference".
+- Add more MoviePy effects (crop, rotate, fade in/out, text overlays, etc.)
+  in `video_editor.py`.
+- Add tests for `video_editor.process_video()` using short generated sample
+  clips.
+- Add a file-size/duration limit in `app.py` if you plan to host this for
+  public use, to stay within the free tier's resource limits.
